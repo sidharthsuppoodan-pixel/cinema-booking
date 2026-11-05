@@ -1,0 +1,69 @@
+name: cinebook
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cinebook-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  backend:
+    build:
+      context: ./backend
+    image: cinebook-backend:latest
+    container_name: cinebook-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      MEDIA_DIR: /app/media
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend, frontend]
+
+  frontend:
+    build:
+      context: ./frontend
+    image: cinebook-frontend:latest
+    container_name: cinebook-frontend
+    restart: unless-stopped
+    networks: [frontend]
+
+  nginx:
+    build:
+      context: ./nginx
+    image: cinebook-nginx:latest
+    container_name: cinebook-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - media_data:/var/www/media:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks: [frontend]
+
+volumes:
+  postgres_data:
+  media_data:
+
+networks:
+  backend:
+  frontend:

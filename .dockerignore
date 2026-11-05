@@ -1,0 +1,12 @@
+# Root build-context exclusions (each service builds from its own folder,
+# which also has its own .dockerignore).
+.git
+.env
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/.venv
+**/media
+*.log
+.DS_Store
